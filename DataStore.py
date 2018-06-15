@@ -1,5 +1,5 @@
 """File server"""
-from flask import Flask, request
+from flask import Flask, request, json
 import base64, M2Crypto
 
 app = Flask(__name__)
@@ -41,6 +41,7 @@ class DataStore:
         """generate a unique session ID for a specified user"""
         token = base64.b64encode(M2Crypto.m2.rand_bytes(num_bytes))
         self.tokens[user] = token
+        return token
     
     def delete_token(self, user):
         """removes the session token for a given user when they log out"""
@@ -57,6 +58,14 @@ class DataStore:
             return 'invalid'
         except: #user not logged in; token doesn't exist on server
             return 'login'
+
+def make_resp(resp_data, status_code):
+    response = app.response_class(
+        response=json.dumps(resp_data),
+        status=status_code,
+        mimetype='application/json'
+    )
+    return response
 
 db = DataStore()
 USERS = db.users
@@ -77,22 +86,42 @@ def register():
         str(username).isalnum() and \
         len(password) >= 8: 
         db.put_user_credentials(username, password)
-        return('User registered', 200)
+        return('', 204)
     else:
-        #401 = username error, 402 = pw error
         if username is None:
-            return('Please provide a username', 401)
+            response = make_resp({'error': 'Please provide a username.'}, 400)
+            return response
         elif password is None:
-            return('Please provide a password', 402)
+            response = make_resp({'error': 'Please provide a password.'}, 400)
+            return response
         elif len(username) <= 3 or len(username) > 19:
-            return('Invalid username length', 401)
+            response = make_resp({'error': 'Invalid username length.'}, 400)
+            return response
         elif str(username).isalnum == False:
-            return('Invalid username characters', 401)
+            response = make_resp({'error': 'Invalid username characters.'}, 400)
+            return response
         elif len(password) < 8:
-            return('Password too short', 402)
+            response = make_resp({'error': 'Password too short.'}, 400)
+            return response
 
+@app.route('/login', methods=['POST'])
+def login():
+    """logs a user in so they can add/delete their files"""
+    if not request.is_json:
+        return('', 400)
 
-# TODO implement login/files endpoints
+    username = request.json.get('username', None)
+    password = request.json.get('password', None)
+
+    if USERS.get(username, None) is None:
+        response = make_resp({'error': 'User does not exist. Please register.'}, 403)
+        return response
+    else:
+        token = db.generate_session_id(username)
+        response = make_resp({'token': token}, 200)
+        return response
+    
+# TODO implement files endpoints
 
 if __name__ == "__main__":
     app.run(debug=True, host='0.0.0.0', port=5000)
