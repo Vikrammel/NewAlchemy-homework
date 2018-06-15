@@ -49,7 +49,10 @@ class DataStore:
             del self.tokens[user]
         except:
             pass
-    
+
+    def get_user_from_token(self, token):
+        """returns username of user logged in with active token passed in"""
+
     def verify_token(self, user, token):
         """checks if user's token passed in with put/get/del requests is correct"""
         try:
@@ -122,6 +125,15 @@ def login():
         return response
     
 # TODO implement files endpoints
+# working on this, will complete tomorrow
+@app.route('/files/<filename>', methods=['PUT'])
+def put_file(filename):
+    """stores user's file passed in with request in db"""
+    if 'X-Session' in request.headers:
+        print(request.headers['X-Session'])
+        print('found token')
+        return("", 200)
+    return('', 400)
 
 if __name__ == "__main__":
     app.run(debug=True, host='0.0.0.0', port=5000)
