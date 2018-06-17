@@ -44,8 +44,11 @@ class DataStore:
         new_file.f_size = f_size
         new_file.f_type = f_type
         new_file.contents = data
-        self.user_files[user] = {filename: new_file}
-
+        try:
+            self.user_files[user][filename] = new_file
+        except:
+            self.user_files[user] = {filename: new_file}
+            
     def delete_user_file(self, user, filename):
         """delete a users file"""
         try:
@@ -77,14 +80,14 @@ class DataStore:
             if token == curr_token:
                 return user
 
-    def verify_token(self, user, token):
-        """checks if user's token passed in with put/get/del requests is correct"""
-        try:
-            if token == self.tokens[user]:
-                return 'valid'
-            return 'invalid'
-        except: #user not logged in; token doesn't exist on server
-            return 'login'
+    # def verify_token(self, user, token):
+    #     """checks if user's token passed in with put/get/del requests is correct"""
+    #     try:
+    #         if token == self.tokens[user]:
+    #             return 'valid'
+    #         return 'invalid'
+    #     except: #user not logged in; token doesn't exist on server
+    #         return 'login'
 
 def make_resp(resp_data, status_code):
     response = app.response_class(
@@ -158,8 +161,6 @@ def logout():
     if 'X-Session' in request.headers:
         req_token = request.headers['X-Session'] #get session token
         username = db.get_user_from_token(req_token) #get username token belongs to
-        print(req_token)
-        print(username)
         if username is not None:
             db.delete_token(username)
             return('', 200)
@@ -175,6 +176,8 @@ def put_get_file(filename):
         if username is not None:
             if request.method == 'PUT':
                 req_file = request.get_data() #get binary file data
+                if req_file is None:
+                    req_file = request.data
                 if 'Content-Length' in request.headers and \
                      'Content-Type' in request.headers:
                     db.put_user_file(username, filename, req_file, 
@@ -206,9 +209,10 @@ def put_get_file(filename):
                 user_files = db.get_all_user_files(username)
                 if user_files is not None and user_files is not False:
                     files_contens = []
-                    for f_name, f_obj in user_files:
+                    for f_name, f_obj in user_files.items():
                         files_contens.append({f_name: {'Content-Length': f_obj.f_size, 
-                            'Content-Type': f_obj.f_type, 'Contents': f_obj.contents}}) 
+                            'Content-Type': f_obj.f_type, 'Contents': f_obj.contents.decode('utf-8')}}) 
+                    if len(files_contens) < 1: return('', 404)
                     response = make_resp(files_contens, 200)
                     return response
                 #no spec for dealing with no user files, so returning 404 Not Found
