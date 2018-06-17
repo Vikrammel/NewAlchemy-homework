@@ -60,8 +60,8 @@ class DataStore:
         if user_cred is not None:
             if user_cred == password:
                 token = base64.b64encode(M2Crypto.m2.rand_bytes(num_bytes))
-                self.tokens[user] = token
-                return token
+                self.tokens[user] = token.decode('utf-8')
+                return token.decode('utf-8')
             
     
     def delete_token(self, user):
@@ -73,7 +73,7 @@ class DataStore:
 
     def get_user_from_token(self, token):
         """returns username of user logged in with active token passed in"""
-        for user, curr_token in self.tokens.iteritems():
+        for user, curr_token in self.tokens.items():
             if token == curr_token:
                 return user
 
@@ -90,7 +90,8 @@ def make_resp(resp_data, status_code):
     response = app.response_class(
         response=json.dumps(resp_data),
         status=status_code,
-        mimetype='application/json'
+        mimetype='application/json',
+        headers={'Content-Type':'application/json'}
     )
     return response
 
@@ -111,25 +112,24 @@ def register():
         USERS.get(username, None) is None and \
         len(username) > 3 and len(username) < 20 and \
         str(username).isalnum() and \
-        len(password) >= 8: 
+        len(password) >= 8:
         db.put_user_credentials(username, password)
         return('', 204)
     else:
+        response = make_resp({'error':'Unknown error.'}, 400)
         if username is None:
             response = make_resp({'error': 'Please provide a username.'}, 400)
-            return response
         elif password is None:
             response = make_resp({'error': 'Please provide a password.'}, 400)
-            return response
         elif len(username) <= 3 or len(username) > 19:
             response = make_resp({'error': 'Invalid username length.'}, 400)
-            return response
         elif str(username).isalnum == False:
             response = make_resp({'error': 'Invalid username characters.'}, 400)
-            return response
         elif len(password) < 8:
             response = make_resp({'error': 'Password too short.'}, 400)
-            return response
+        elif USERS.get(username, None) is not None:
+            response = make_resp({'error':'Username already in use.'}, 400)
+        return response
 
 @app.route('/login', methods=['POST'])
 def login():
@@ -158,6 +158,8 @@ def logout():
     if 'X-Session' in request.headers:
         req_token = request.headers['X-Session'] #get session token
         username = db.get_user_from_token(req_token) #get username token belongs to
+        print(req_token)
+        print(username)
         if username is not None:
             db.delete_token(username)
             return('', 200)
@@ -173,7 +175,6 @@ def put_get_file(filename):
         if username is not None:
             if request.method == 'PUT':
                 req_file = request.get_data() #get binary file data
-                print("filename: " + filename)
                 if 'Content-Length' in request.headers and \
                      'Content-Type' in request.headers:
                     db.put_user_file(username, filename, req_file, 
