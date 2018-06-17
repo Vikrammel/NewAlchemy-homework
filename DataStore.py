@@ -4,8 +4,13 @@ import base64, M2Crypto
 
 app = Flask(__name__)
 
+class UserFile:
+    def __init__(self):
+        self.f_size = None
+        self.f_type = ''
+        self.contents = None
+
 class DataStore:
-    """simple in-memory filestore, fix bugs as needed"""
     def __init__(self):
         self.users = {}
         self.user_files = {}
@@ -26,9 +31,13 @@ class DataStore:
         except:
             return None
 
-    def put_user_file(self, user, filename, data):
+    def put_user_file(self, user, filename, data, f_size, f_type):
         """stores file data for user/file"""
-        self.user_files[user] = {filename: data}
+        new_file = UserFile()
+        new_file.f_size = f_size
+        new_file.f_type = f_type
+        new_file.contents = data
+        self.user_files[user] = {filename: new_file}
 
     def delete_user_file(self, user, filename):
         """delete a users file"""
@@ -52,6 +61,9 @@ class DataStore:
 
     def get_user_from_token(self, token):
         """returns username of user logged in with active token passed in"""
+        for user, curr_token in self.tokens.iteritems():
+            if token == curr_token:
+                return user
 
     def verify_token(self, user, token):
         """checks if user's token passed in with put/get/del requests is correct"""
@@ -126,14 +138,44 @@ def login():
     
 # TODO implement files endpoints
 # working on this, will complete tomorrow
-@app.route('/files/<filename>', methods=['PUT'])
-def put_file(filename):
-    """stores user's file passed in with request in db"""
+@app.route('/files/<filename>', methods=['PUT', 'GET'])
+def put_get_file(filename):
+    """stores or returns user's file passed in with request in db"""
     if 'X-Session' in request.headers:
-        print(request.headers['X-Session'])
-        print('found token')
-        return("", 200)
-    return('', 400)
+        req_token = request.headers['X-Session'] #get session token
+        username = db.get_user_from_token(req_token) #get username token belongs to
+        if username is not None:
+            if request.method == 'PUT':
+                req_file = request.get_data() #get binary file data
+                print("filename: " + filename)
+                if 'Content-Length' in request.headers and \
+                     'Content-Type' in request.headers:
+                    db.put_user_file(username, filename, req_file, 
+                        request.headers['Content-Length'], 
+                        request.headers['Content-Type'])
+                    response = app.response_class(
+                        response='',
+                        status=201,
+                        headers={'location': '/files/' + filename}
+                    )
+                    return response
+                """specification for dealing with no Content-Type and Content-Length not provided,
+                so I decided to return 400 Bad Request with JSON response with 'error' property
+                in the same fashion as other error responses in the specification"""
+                response = make_resp({'error':"Please provide 'Content-Length and Content-Type headers"}, 400)
+                return response
+            elif request.method == 'GET':
+                resp_file = db.get_user_file(username, filename)
+                if resp_file is not None:
+                    response = app.response_class(
+                        response=resp_file.contents,
+                        status=200,
+                        headers={'Content-Length':resp_file.f_size, 
+                                'Content-Type':resp_file.f_type}
+                    )
+                    return response
+                return('', 404)
+    return('', 403)
 
 if __name__ == "__main__":
     app.run(debug=True, host='0.0.0.0', port=5000)
