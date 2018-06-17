@@ -1,6 +1,6 @@
 """File server"""
 from flask import Flask, request, json
-import base64, M2Crypto
+import secrets
 
 app = Flask(__name__)
 
@@ -44,8 +44,11 @@ class DataStore:
         new_file.f_size = f_size
         new_file.f_type = f_type
         new_file.contents = data
-        self.user_files[user] = {filename: new_file}
-
+        try:
+            self.user_files[user][filename] = new_file
+        except:
+            self.user_files[user] = {filename: new_file}
+            
     def delete_user_file(self, user, filename):
         """delete a users file"""
         try:
@@ -59,10 +62,9 @@ class DataStore:
         user_cred = self.get_user_creds(user)
         if user_cred is not None:
             if user_cred == password:
-                token = base64.b64encode(M2Crypto.m2.rand_bytes(num_bytes))
+                token = secrets.token_hex(num_bytes)
                 self.tokens[user] = token
-                return token
-            
+                return token   
     
     def delete_token(self, user):
         """removes the session token for a given user when they log out"""
@@ -73,24 +75,25 @@ class DataStore:
 
     def get_user_from_token(self, token):
         """returns username of user logged in with active token passed in"""
-        for user, curr_token in self.tokens.iteritems():
+        for user, curr_token in self.tokens.items():
             if token == curr_token:
                 return user
 
-    def verify_token(self, user, token):
-        """checks if user's token passed in with put/get/del requests is correct"""
-        try:
-            if token == self.tokens[user]:
-                return 'valid'
-            return 'invalid'
-        except: #user not logged in; token doesn't exist on server
-            return 'login'
+    # def verify_token(self, user, token):
+    #     """checks if user's token passed in with put/get/del requests is correct"""
+    #     try:
+    #         if token == self.tokens[user]:
+    #             return 'valid'
+    #         return 'invalid'
+    #     except: #user not logged in; token doesn't exist on server
+    #         return 'login'
 
 def make_resp(resp_data, status_code):
     response = app.response_class(
         response=json.dumps(resp_data),
         status=status_code,
-        mimetype='application/json'
+        mimetype='application/json',
+        headers={'Content-Type':'application/json'}
     )
     return response
 
@@ -111,25 +114,24 @@ def register():
         USERS.get(username, None) is None and \
         len(username) > 3 and len(username) < 20 and \
         str(username).isalnum() and \
-        len(password) >= 8: 
+        len(password) >= 8:
         db.put_user_credentials(username, password)
         return('', 204)
     else:
+        response = make_resp({'error':'Unknown error.'}, 400)
         if username is None:
             response = make_resp({'error': 'Please provide a username.'}, 400)
-            return response
         elif password is None:
             response = make_resp({'error': 'Please provide a password.'}, 400)
-            return response
         elif len(username) <= 3 or len(username) > 19:
             response = make_resp({'error': 'Invalid username length.'}, 400)
-            return response
         elif str(username).isalnum == False:
             response = make_resp({'error': 'Invalid username characters.'}, 400)
-            return response
         elif len(password) < 8:
             response = make_resp({'error': 'Password too short.'}, 400)
-            return response
+        elif USERS.get(username, None) is not None:
+            response = make_resp({'error':'Username already in use.'}, 400)
+        return response
 
 @app.route('/login', methods=['POST'])
 def login():
@@ -173,7 +175,8 @@ def put_get_file(filename):
         if username is not None:
             if request.method == 'PUT':
                 req_file = request.get_data() #get binary file data
-                print("filename: " + filename)
+                if req_file is None:
+                    req_file = request.data
                 if 'Content-Length' in request.headers and \
                      'Content-Type' in request.headers:
                     db.put_user_file(username, filename, req_file, 
@@ -205,9 +208,10 @@ def put_get_file(filename):
                 user_files = db.get_all_user_files(username)
                 if user_files is not None and user_files is not False:
                     files_contens = []
-                    for f_name, f_obj in user_files:
+                    for f_name, f_obj in user_files.items():
                         files_contens.append({f_name: {'Content-Length': f_obj.f_size, 
-                            'Content-Type': f_obj.f_type, 'Contents': f_obj.contents}}) 
+                            'Content-Type': f_obj.f_type, 'Contents': f_obj.contents.decode('utf-8')}}) 
+                    if len(files_contens) < 1: return('', 404)
                     response = make_resp(files_contens, 200)
                     return response
                 #no spec for dealing with no user files, so returning 404 Not Found
