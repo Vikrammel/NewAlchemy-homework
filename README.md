@@ -19,7 +19,7 @@ Specifications: https://github.com/newalchemylimited/homework/wiki/Assignment:-S
 
 #### Running on local machine:
 
-- If on Windows: cURL comes pre-installed on macOS and Linux. For windows download the .zip from [here](https://curl.haxx.se/download.html "link to cURL download") then unzip the archine in a directory on your choice to use cURL.
+- If on Windows: cURL comes pre-installed on macOS and Linux. For windows download the .zip from [here](https://curl.haxx.se/download.html "link to cURL download") then unzip the archine in a directory of your choice to use cURL.
 
 - Install python3/pip3 if not installed from [here](http://docs.python-guide.org/en/latest/starting/installation/ "link to python3 download").
 
@@ -53,7 +53,7 @@ Open Terminal.
 
 - User PUT file:
 
-`cd` into directory that contains <filename> from terminal (include file extension in <filename>)
+`cd` into directory that contains <filename> from terminal (include file extension in \<filename>)
 
 `curl --header "X-Session: <token returned from previous /login request>" --header "Content-Length: <length of file as string>"  --header "Content-Type: <type of content as text eg. 'text/html'>" --request PUT --data "@<filename>"   http://localhost:5000/files/<filename>`
 
