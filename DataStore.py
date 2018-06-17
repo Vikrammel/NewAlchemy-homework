@@ -31,6 +31,13 @@ class DataStore:
         except:
             return None
 
+    def get_all_user_files(self, user):
+        """gets all files that belong to user passed in, returns None if user's files don't exist"""
+        try:
+            return self.user_files[user]
+        except:
+            return None
+
     def put_user_file(self, user, filename, data, f_size, f_type):
         """stores file data for user/file"""
         new_file = UserFile()
@@ -43,14 +50,19 @@ class DataStore:
         """delete a users file"""
         try:
             del self.user_files[user][filename]
+            return 204 #return status code for successful deletion
         except:
-            pass
+            return 404 #return status code for file not found
 
-    def generate_session_id(self, user, num_bytes = 16):
+    def generate_session_id(self, user, password, num_bytes = 16):
         """generate a unique session ID for a specified user"""
-        token = base64.b64encode(M2Crypto.m2.rand_bytes(num_bytes))
-        self.tokens[user] = token
-        return token
+        user_cred = self.get_user_creds(user)
+        if user_cred is not None:
+            if user_cred == password:
+                token = base64.b64encode(M2Crypto.m2.rand_bytes(num_bytes))
+                self.tokens[user] = token
+                return token
+            
     
     def delete_token(self, user):
         """removes the session token for a given user when they log out"""
@@ -128,17 +140,31 @@ def login():
     username = request.json.get('username', None)
     password = request.json.get('password', None)
 
-    if USERS.get(username, None) is None:
+    if db.get_user_creds(username) is None:
         response = make_resp({'error': 'User does not exist. Please register.'}, 403)
-        return response
+    elif password is None or username is None:
+        response = make_resp({'error': 'Please provide a username and password.'}, 403)
     else:
-        token = db.generate_session_id(username)
-        response = make_resp({'token': token}, 200)
-        return response
-    
-# TODO implement files endpoints
-# working on this, will complete tomorrow
-@app.route('/files/<filename>', methods=['PUT', 'GET'])
+        token = db.generate_session_id(username, password)
+        if token is None:
+            response = make_resp({'error':'Bad password'}, 403)
+        else:
+            response = make_resp({'token': token}, 200)
+    return response
+
+@app.route('/logout', methods=['POST'])
+def logout():
+    """logs a user out returning 200 OK or returns 403 Forbidden if user is not logged in"""
+    if 'X-Session' in request.headers:
+        req_token = request.headers['X-Session'] #get session token
+        username = db.get_user_from_token(req_token) #get username token belongs to
+        if username is not None:
+            db.delete_token(username)
+            return('', 200)
+    return('', 403)
+
+@app.route('/files', defaults={'filename': None})
+@app.route('/files/<filename>', methods=['PUT', 'GET', 'DELETE'])
 def put_get_file(filename):
     """stores or returns user's file passed in with request in db"""
     if 'X-Session' in request.headers:
@@ -160,21 +186,35 @@ def put_get_file(filename):
                     )
                     return response
                 """specification for dealing with no Content-Type and Content-Length not provided,
-                so I decided to return 400 Bad Request with JSON response with 'error' property
-                in the same fashion as other error responses in the specification"""
-                response = make_resp({'error':"Please provide 'Content-Length and Content-Type headers"}, 400)
+                    so I decided to return 400 Bad Request with JSON response with 'error' property
+                    in the same fashion as other error responses in the specification"""
+                response = make_resp({'error':"Please provide 'Content-Length' and 'Content-Type' headers."}, 400)
                 return response
             elif request.method == 'GET':
-                resp_file = db.get_user_file(username, filename)
-                if resp_file is not None:
-                    response = app.response_class(
-                        response=resp_file.contents,
-                        status=200,
-                        headers={'Content-Length':resp_file.f_size, 
-                                'Content-Type':resp_file.f_type}
-                    )
+                if filename is not None:
+                    resp_file = db.get_user_file(username, filename)
+                    if resp_file is not None:
+                        response = app.response_class(
+                            response=resp_file.contents,
+                            status=200,
+                            headers={'Content-Length':resp_file.f_size, 
+                                    'Content-Type':resp_file.f_type}
+                        )
+                        return response
+                    return('', 404)
+                user_files = db.get_all_user_files(username)
+                if user_files is not None and user_files is not False:
+                    files_contens = []
+                    for f_name, f_obj in user_files:
+                        files_contens.append({f_name: {'Content-Length': f_obj.f_size, 
+                            'Content-Type': f_obj.f_type, 'Contents': f_obj.contents}}) 
+                    response = make_resp(files_contens, 200)
                     return response
+                #no spec for dealing with no user files, so returning 404 Not Found
                 return('', 404)
+            elif request.method == 'DELETE':
+                status_code = db.delete_user_file(username, filename)
+                return('', status_code)
     return('', 403)
 
 if __name__ == "__main__":
