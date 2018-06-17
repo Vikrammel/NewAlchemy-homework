@@ -1,0 +1,121 @@
+
+***** User Registration Tests *****
+
+*** User 1 ***
+
+<Response [204]>
+{'Content-Type': 'text/html; charset=utf-8', 'Content-Length': '0', 'Server': 'Werkzeug/0.14.1 Python/3.6.5', 'Date': 'Sun, 17 Jun 2018 17:37:11 GMT'}
+
+
+*** Attempt to register again with user 1 credentials (should fail) ***
+
+<Response [400]>
+{'Content-Type': 'application/json', 'Content-Length': '37', 'Server': 'Werkzeug/0.14.1 Python/3.6.5', 'Date': 'Sun, 17 Jun 2018 17:37:11 GMT'}
+{"error": "Username already in use."}
+
+*** User 2 ***
+
+<Response [204]>
+{'Content-Type': 'text/html; charset=utf-8', 'Content-Length': '0', 'Server': 'Werkzeug/0.14.1 Python/3.6.5', 'Date': 'Sun, 17 Jun 2018 17:37:11 GMT'}
+
+
+
+***** Login/Logout Tests *****
+
+*** User 1 Valid Login ***
+
+<Response [200]>
+{'Content-Type': 'application/json', 'Content-Length': '45', 'Server': 'Werkzeug/0.14.1 Python/3.6.5', 'Date': 'Sun, 17 Jun 2018 17:37:11 GMT'}
+{"token": "fe714cbdf1abf8fd0e4c7f728f684d69"}
+
+*** User 1 Valid Logout ***
+
+<Response [200]>
+{'Content-Type': 'text/html; charset=utf-8', 'Content-Length': '0', 'Server': 'Werkzeug/0.14.1 Python/3.6.5', 'Date': 'Sun, 17 Jun 2018 17:37:11 GMT'}
+
+
+
+***** File Tests *****
+
+*** User 1 GET files/input_file_1.txt (should fail) ***
+
+<Response [404]>
+{'Content-Type': 'text/html; charset=utf-8', 'Content-Length': '0', 'Server': 'Werkzeug/0.14.1 Python/3.6.5', 'Date': 'Sun, 17 Jun 2018 17:37:11 GMT'}
+
+
+*** User 1 GET all files (should fail) ***
+
+<Response [404]>
+{'Content-Type': 'text/html; charset=utf-8', 'Content-Length': '0', 'Server': 'Werkzeug/0.14.1 Python/3.6.5', 'Date': 'Sun, 17 Jun 2018 17:37:11 GMT'}
+
+
+*** User 1 PUT files/input_file_1.txt ***
+
+<Response [201]>
+{'Location': 'http://0.0.0.0:5000/files/input_file_1.txt', 'Content-Type': 'text/html; charset=utf-8', 'Content-Length': '0', 'Server': 'Werkzeug/0.14.1 Python/3.6.5', 'Date': 'Sun, 17 Jun 2018 17:37:11 GMT'}
+
+
+*** User 1 GET files/input_file_1.txt ***
+
+<Response [200]>
+{'Content-Length': '56', 'Content-Type': 'text/html', 'Server': 'Werkzeug/0.14.1 Python/3.6.5', 'Date': 'Sun, 17 Jun 2018 17:37:11 GMT'}
+File Contents:
+this is a test user file that 
+the user would upload. 1.
+
+*** User 1 GET files/input_file_2.txt (should 404) ***
+
+<Response [404]>
+{'Content-Type': 'text/html; charset=utf-8', 'Content-Length': '0', 'Server': 'Werkzeug/0.14.1 Python/3.6.5', 'Date': 'Sun, 17 Jun 2018 17:37:11 GMT'}
+
+
+*** GET files/input_file_1.txt with bad token (should 403) ***
+
+<Response [403]>
+{'Content-Type': 'text/html; charset=utf-8', 'Content-Length': '0', 'Server': 'Werkzeug/0.14.1 Python/3.6.5', 'Date': 'Sun, 17 Jun 2018 17:37:11 GMT'}
+
+
+*** User 1 PUT files/input_file_2.txt and GET all files ***
+
+<Response [201]>
+{'Location': 'http://0.0.0.0:5000/files/input_file_2.txt', 'Content-Type': 'text/html; charset=utf-8', 'Content-Length': '0', 'Server': 'Werkzeug/0.14.1 Python/3.6.5', 'Date': 'Sun, 17 Jun 2018 17:37:11 GMT'}
+
+<Response [200]>
+{'Content-Type': 'application/json', 'Content-Length': '300', 'Server': 'Werkzeug/0.14.1 Python/3.6.5', 'Date': 'Sun, 17 Jun 2018 17:37:11 GMT'}
+[{"input_file_1.txt": {"Content-Length": "56", "Content-Type": "text/html", "Contents": "this is a test user file that \nthe user would upload. 1."}}, {"input_file_2.txt": {"Content-Length": "56", "Content-Type": "text/html", "Contents": "this is a test user file that \nthe user would upload. 2."}}]
+
+*** User 1 DELETE files/input_file_3.txt (should 404) ***
+
+<Response [404]>
+{'Content-Type': 'text/html; charset=utf-8', 'Content-Length': '0', 'Server': 'Werkzeug/0.14.1 Python/3.6.5', 'Date': 'Sun, 17 Jun 2018 17:37:11 GMT'}
+
+
+*** User 1 DELETE files/input_file_1.txt with bad token (should 403) ***
+
+<Response [403]>
+{'Content-Type': 'text/html; charset=utf-8', 'Content-Length': '0', 'Server': 'Werkzeug/0.14.1 Python/3.6.5', 'Date': 'Sun, 17 Jun 2018 17:37:11 GMT'}
+
+
+*** User 1 DELETE files/input_file_1.txt ***
+
+<Response [204]>
+{'Content-Type': 'text/html; charset=utf-8', 'Content-Length': '0', 'Server': 'Werkzeug/0.14.1 Python/3.6.5', 'Date': 'Sun, 17 Jun 2018 17:37:11 GMT'}
+
+
+*** User 1 GET files/input_file_1.txt (should 404 since it was deleted) ***
+
+<Response [404]>
+{'Content-Type': 'text/html; charset=utf-8', 'Content-Length': '0', 'Server': 'Werkzeug/0.14.1 Python/3.6.5', 'Date': 'Sun, 17 Jun 2018 17:37:11 GMT'}
+
+
+*** User 1 DELETE files/input_file_2.txt and get all files (should 404) ***
+
+<Response [204]>
+{'Content-Type': 'text/html; charset=utf-8', 'Content-Length': '0', 'Server': 'Werkzeug/0.14.1 Python/3.6.5', 'Date': 'Sun, 17 Jun 2018 17:37:11 GMT'}
+
+<Response [404]>
+{'Content-Type': 'text/html; charset=utf-8', 'Content-Length': '0', 'Server': 'Werkzeug/0.14.1 Python/3.6.5', 'Date': 'Sun, 17 Jun 2018 17:37:11 GMT'}
+
+
+
+ ***** Tests Complete *****

@@ -1,6 +1,6 @@
 """File server"""
 from flask import Flask, request, json
-import base64, M2Crypto
+import secrets
 
 app = Flask(__name__)
 
@@ -62,10 +62,9 @@ class DataStore:
         user_cred = self.get_user_creds(user)
         if user_cred is not None:
             if user_cred == password:
-                token = base64.b64encode(M2Crypto.m2.rand_bytes(num_bytes))
-                self.tokens[user] = token.decode('utf-8')
-                return token.decode('utf-8')
-            
+                token = secrets.token_hex(num_bytes)
+                self.tokens[user] = token
+                return token   
     
     def delete_token(self, user):
         """removes the session token for a given user when they log out"""
